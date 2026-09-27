@@ -54,9 +54,16 @@ const die = (m) => { console.error(`job-applications-tracker: ${m}`); process.ex
 const stageColour = (s) =>
   s === 'offer' ? C.g : s === 'rejected' || s === 'withdrawn' ? C.dim : s === 'interview' ? C.c : C.y;
 
+/**
+ * A column has to be truncated as well as padded, or it is not a column.
+ * `padEnd` on its own let "AllUp (One Tech Capital)" run two characters past
+ * its width and shunted every field after it out of line.
+ */
+const col = (s, w) => String(s ?? '').slice(0, w).padEnd(w);
+
 const row = (a) =>
-  `  ${C.dim}#${String(a.id).padEnd(3)}${C.off} ${stageColour(a.stage)}${a.stage.padEnd(10)}${C.off} ` +
-  `${C.b}${(a.company ?? '?').padEnd(22)}${C.off} ${(a.role ?? '').slice(0, 38).padEnd(38)} ` +
+  `  ${C.dim}#${col(a.id, 3)}${C.off} ${stageColour(a.stage)}${col(a.stage, 10)}${C.off} ` +
+  `${C.b}${col(a.company ?? '?', 22)}${C.off} ${col(a.role, 34)} ` +
   `${C.dim}${a.applied_on}${C.off}`;
 
 try {
