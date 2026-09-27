@@ -1,0 +1,10 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "job-apply-agent",
+  "description": "Which job you applied to, with which CV, and what came back. A local job-search record with zero dependencies and no telemetry.",
+  "version": "0.1.0",
+  "author": { "name": "Alok Rajasukumaran", "url": "https://alokraj68.in" },
+  "homepage": "https://alokraj68.in/job-apply-agent",
+  "license": "MIT",
+  "keywords": ["job-search", "job-application", "resume", "cv", "ats", "career"]
+}

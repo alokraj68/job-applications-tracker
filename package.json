@@ -1,0 +1,62 @@
+{
+  "name": "job-apply-agent",
+  "version": "0.1.0",
+  "description": "Which job you applied to, with which CV, and what came back. A local job-search record with zero dependencies and no telemetry.",
+  "keywords": [
+    "job-search",
+    "job-application",
+    "job-apply",
+    "agent",
+    "agent-skills",
+    "claude-code",
+    "resume",
+    "cv",
+    "ats",
+    "application-tracker",
+    "career",
+    "job-tracker",
+    "cli",
+    "privacy"
+  ],
+  "license": "MIT",
+  "author": "Alok Rajasukumaran (https://alokraj68.in)",
+  "homepage": "https://alokraj68.in/job-apply-agent",
+  "bugs": {
+    "url": "https://github.com/alokraj68/job-apply-agent/issues"
+  },
+  "funding": [
+    { "type": "github", "url": "https://github.com/sponsors/alokraj68" },
+    { "type": "buymeacoffee", "url": "https://buymeacoffee.com/alokraj68" }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alokraj68/job-apply-agent.git"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "bin": {
+    "job-apply-agent": "bin/job-apply-agent.mjs"
+  },
+  "exports": {
+    ".": "./src/store.mjs",
+    "./store": "./src/store.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "skills",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "test": "node test/run.mjs",
+    "lint:prose": "npx --yes @alokraj68/plainspoken README.md skills/job-apply/SKILL.md",
+    "ci": "npm test && npm run lint:prose && npm pack --dry-run"
+  }
+}

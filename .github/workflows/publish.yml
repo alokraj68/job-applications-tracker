@@ -1,0 +1,89 @@
+name: Publish package
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: publish-${{ github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+
+      # Trusted Publishing (OIDC) requires npm >= 11.5.1
+      - name: Upgrade npm
+        run: npm install -g npm@latest
+
+      - name: Test
+        run: node test/run.mjs
+
+      - name: Prose
+        run: npx --yes @alokraj68/plainspoken README.md skills/job-apply/SKILL.md
+
+      - name: Verify package contents
+        run: npm pack --dry-run
+
+      - id: check-published-version
+        name: Check if version already exists on npm
+        run: |
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          echo "version=$PACKAGE_VERSION" >> "$GITHUB_OUTPUT"
+          if npm view "$PACKAGE_NAME@$PACKAGE_VERSION" version >/dev/null 2>&1; then
+            echo "skip_publish=true" >> "$GITHUB_OUTPUT"
+            echo "$PACKAGE_NAME@$PACKAGE_VERSION is already published, skipping."
+          else
+            echo "skip_publish=false" >> "$GITHUB_OUTPUT"
+            echo "Publishing $PACKAGE_NAME@$PACKAGE_VERSION"
+          fi
+
+      # Trusted Publishing: OIDC via the id-token permission, no NPM_TOKEN.
+      # Provenance is attached automatically. Requires a trusted publisher
+      # configured on npmjs.com for this repo + publish.yml.
+      - name: Publish to npm
+        if: steps.check-published-version.outputs.skip_publish == 'false'
+        run: npm publish --access public
+
+      - name: Create GitHub Release
+        if: steps.check-published-version.outputs.skip_publish == 'false'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ steps.check-published-version.outputs.version }}
+          name: v${{ steps.check-published-version.outputs.version }}
+          generate_release_notes: true
+
+      # Tell alokraj68.in to rebuild. Its open-source section reads npm at build
+      # time, so without this the site names the previous version until its
+      # nightly cron runs. Best effort: a failure here must not fail a release
+      # that already went out.
+      - name: Refresh alokraj68.in
+        if: steps.check-published-version.outputs.skip_publish == 'false'
+        continue-on-error: true
+        env:
+          TOKEN: ${{ secrets.SITE_REFRESH_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::warning::SITE_REFRESH_TOKEN not set - the site will pick this up on its nightly rebuild."
+            exit 0
+          fi
+          curl -sf -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $TOKEN" \
+            https://api.github.com/repos/alokraj68/alokraj68.in/dispatches \
+            -d '{"event_type":"package-published","client_payload":{"package":"job-apply-agent","version":"${{ steps.check-published-version.outputs.version }}"}}'

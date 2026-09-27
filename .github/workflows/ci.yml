@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # 22.5 is the floor because node:sqlite arrived there. 22.x still needs
+        # --experimental-sqlite, so the matrix proves the guarded import in
+        # src/store.mjs produces a readable message rather than a stack trace.
+        node-version: ['22.5', '22', '24']
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      # No install step: this package has zero dependencies, runtime or dev.
+      - name: Test
+        run: node --experimental-sqlite test/run.mjs
+
+      - name: CLI answers --help
+        run: node --experimental-sqlite bin/job-apply-agent.mjs --help
+
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      # A tool that keeps a job-search record cannot ship prose that reads as
+      # machine-written, so its own README goes through the linter.
+      - name: Prose
+        run: npx --yes @alokraj68/plainspoken README.md skills/job-apply/SKILL.md
+
+      - name: Manifests parse
+        run: |
+          for f in package.json .claude-plugin/plugin.json .claude-plugin/marketplace.json; do
+            node -e "JSON.parse(require('fs').readFileSync('$f','utf8'))" && echo "ok $f"
+          done
+
+      - name: Package contents
+        run: npm pack --dry-run
