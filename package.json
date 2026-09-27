@@ -62,6 +62,18 @@
     "access": "public",
     "provenance": true
   },
+  "peerDependencies": {
+    "@alokraj68/plainspoken": ">=1.1.0",
+    "@alokraj68/ats-resume": ">=1.1.0"
+  },
+  "peerDependenciesMeta": {
+    "@alokraj68/plainspoken": {
+      "optional": true
+    },
+    "@alokraj68/ats-resume": {
+      "optional": true
+    }
+  },
   "scripts": {
     "test": "node test/run.mjs",
     "lint:prose": "npx --yes @alokraj68/plainspoken README.md skills/job-apply/SKILL.md",

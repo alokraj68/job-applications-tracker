@@ -12,6 +12,7 @@
 import { open, add, get, list, setStage, history, followup, remove, STAGES, TERMINAL, defaultDbPath }
   from '../src/store.mjs';
 import * as answers from '../src/answers.mjs';
+import { proseCheck, cvCheck, INSTALL_HINT } from '../src/integrations.mjs';
 
 const args = process.argv.slice(2);
 const cmd = args[0];
@@ -149,6 +150,20 @@ try {
       });
       console.log(`${C.g}stored${C.off} ${C.b}${a.name}${C.off}  ${a.words} words, ${a.chars} chars` +
         (a.tags.length ? `  ${C.dim}[${a.tags.join(', ')}]${C.off}` : `\n  ${C.dim}no --tags given. Tagging is what makes 'answers match' useful.${C.off}`));
+
+      // Checked at the moment it is stored, not at the moment it is sent: the
+      // point of a library is that what comes out of it is ready to paste.
+      const prose = proseCheck(a.body);
+      if (!prose.available) {
+        console.log(`  ${C.dim}prose unchecked. ${INSTALL_HINT.plainspoken} to catch AI-tells before you send.${C.off}`);
+      } else if (prose.errors.length) {
+        console.log(`  ${C.r}${prose.errors.length} prose error(s)${C.off} - this reads as machine-written:`);
+        for (const f of prose.errors.slice(0, 4)) console.log(`    ${f.rule}  ${f.message}`);
+      } else if (prose.warnings.length) {
+        console.log(`  ${C.y}${prose.warnings.length} prose warning(s)${C.off}  ${C.dim}${prose.warnings.map((f) => f.rule).join(', ')}${C.off}`);
+      } else {
+        console.log(`  ${C.g}prose clean${C.off}`);
+      }
     }
 
     else if (sub === 'list') {
@@ -193,6 +208,28 @@ try {
       }
       console.log(`\n  ${r.considered} requirement(s) read, ${r.covered.length} covered, ${r.gaps.length} open` +
         (fits ? `  ${C.dim}(only answers under ${fits} chars counted)${C.off}` : ''));
+
+      // The answers are half the application. --cv reads the other half.
+      const cvPath = valueOf('--cv');
+      if (cvPath) {
+        const cv = cvCheck(cvPath, arg);
+        if (!cv.available) {
+          console.log(`\n  ${C.dim}--cv needs @alokraj68/ats-resume. ${INSTALL_HINT['ats-resume']}${C.off}`);
+        } else if (cv.kind === 'match') {
+          const pct = Math.round(cv.result.matchRate * 100);
+          const colour = cv.result.verdict === 'pass' ? C.g : cv.result.verdict === 'marginal' ? C.y : C.r;
+          console.log(`\n${C.b}cv${C.off}  match rate ${colour}${pct}%${C.off} (${cv.result.verdict})`);
+          if (cv.result.fatalGaps.length) {
+            console.log(`  ${C.r}fatal gaps${C.off} ${C.dim}repeated in the posting, absent from the CV${C.off}`);
+            for (const g of cv.result.fatalGaps.slice(0, 8)) console.log(`    ${g.term}  (${g.count}x)`);
+          }
+        } else {
+          const errs = cv.result.findings.filter((f) => f.severity === 'error');
+          console.log(`\n${C.b}cv${C.off}  ${errs.length ? `${C.r}${errs.length} parsing error(s)${C.off}` : `${C.g}parses cleanly${C.off}`}`);
+          for (const f of errs.slice(0, 4)) console.log(`    ${f.rule}  ${f.message}`);
+          console.log(`  ${C.dim}${cv.note}${C.off}`);
+        }
+      }
     }
 
     else if (sub === 'rm') {
