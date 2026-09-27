@@ -35,7 +35,7 @@ jobs:
         run: node --experimental-sqlite test/run.mjs
 
       - name: CLI answers --help
-        run: node --experimental-sqlite bin/job-apply-agent.mjs --help
+        run: node --experimental-sqlite bin/job-applications-tracker.mjs --help
 
   quality:
     runs-on: ubuntu-latest

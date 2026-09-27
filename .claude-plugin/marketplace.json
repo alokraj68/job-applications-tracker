@@ -1,11 +1,11 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "job-apply-agent",
+  "name": "job-applications-tracker",
   "description": "A local record of a job search: which job, which CV, what came back.",
   "owner": { "name": "Alok Rajasukumaran", "url": "https://alokraj68.in" },
   "plugins": [
     {
-      "name": "job-apply-agent",
+      "name": "job-applications-tracker",
       "description": "Record applications, track stages, and chase what has gone quiet. Zero dependencies, no telemetry.",
       "source": "./",
       "category": "productivity"

@@ -23,7 +23,7 @@ export const TERMINAL = new Set(['offer', 'rejected', 'withdrawn']);
 export const NUDGE_AFTER_DAYS = 7;
 
 export const defaultDbPath = () =>
-  process.env.JOB_APPLY_AGENT_DB ?? join(homedir(), '.job-apply-agent', 'applications.db');
+  process.env.JOB_TRACKER_DB ?? join(homedir(), '.job-applications-tracker', 'applications.db');
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS applications (

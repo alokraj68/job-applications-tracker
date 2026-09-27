@@ -1,12 +1,12 @@
 <div align="center">
 
-# 📋 job-apply-agent
+# 📋 job-applications-tracker
 
 **Which job you applied to, with which CV, and what came back.**
 
 A local record of a job search. Zero runtime dependencies, no account, no telemetry: the list of who you applied to stays on your machine.
 
-[![npm version](https://img.shields.io/npm/v/job-apply-agent.svg?logo=npm&color=0b7285)](https://www.npmjs.com/package/job-apply-agent)
+[![npm version](https://img.shields.io/npm/v/job-applications-tracker.svg?logo=npm&color=0b7285)](https://www.npmjs.com/package/job-applications-tracker)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Node >=22.5](https://img.shields.io/badge/Node-%3E%3D22.5-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org)
 [![runtime deps](https://img.shields.io/badge/runtime%20deps-0-2EA043.svg)](#-how-it-works)
@@ -15,7 +15,7 @@ A local record of a job search. Zero runtime dependencies, no account, no teleme
 </div>
 
 ```
-npx job-apply-agent add https://example.com/job/123 --company talabat --cv Resume.pdf
+npx job-applications-tracker add https://example.com/job/123 --company talabat --cv Resume.pdf
 ```
 
 ## ✨ Why this exists
@@ -31,25 +31,25 @@ Node 22.5 or newer. Node 22.x needs `--experimental-sqlite`; from 23.4 the built
 ## 📦 Install
 
 ```bash
-npm i -g job-apply-agent
+npm i -g job-applications-tracker
 ```
 
 Or run it without installing:
 
 ```bash
-npx job-apply-agent --help
+npx job-applications-tracker --help
 ```
 
 ## 🚀 Usage
 
 ```bash
-job-apply-agent add <url> --company talabat --role "Sr. Engineering Manager" \
+job-applications-tracker add <url> --company talabat --role "Sr. Engineering Manager" \
                          --cv Alok-Rajasukumaran-Resume.pdf --answers talabat-fit-1440
 
-job-apply-agent list --open        # what is still in flight
-job-apply-agent show 1             # one application and its full history
-job-apply-agent stage 1 screening --note "recruiter call booked"
-job-apply-agent followup --after 7 # what has gone quiet
+job-applications-tracker list --open        # what is still in flight
+job-applications-tracker show 1             # one application and its full history
+job-applications-tracker stage 1 screening --note "recruiter call booked"
+job-applications-tracker followup --after 7 # what has gone quiet
 ```
 
 ```
@@ -74,7 +74,7 @@ Two decisions worth knowing:
 
 ## 🔒 Privacy
 
-There is no telemetry in this package. Not opt-out telemetry, none. No account, no sync, no analytics, no network calls at all. The database lives at `~/.job-apply-agent/applications.db` and `JOB_APPLY_AGENT_DB` moves it.
+There is no telemetry in this package. Not opt-out telemetry, none. No account, no sync, no analytics, no network calls at all. The database lives at `~/.job-applications-tracker/applications.db` and `JOB_TRACKER_DB` moves it.
 
 That is a deliberate contrast with the alternatives, several of which ship your name and email to the maintainer's analytics by default. A tool that knows where you are applying while you still have a job should not phone home.
 

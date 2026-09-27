@@ -86,4 +86,4 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer $TOKEN" \
             https://api.github.com/repos/alokraj68/alokraj68.in/dispatches \
-            -d '{"event_type":"package-published","client_payload":{"package":"job-apply-agent","version":"${{ steps.check-published-version.outputs.version }}"}}'
+            -d '{"event_type":"package-published","client_payload":{"package":"job-applications-tracker","version":"${{ steps.check-published-version.outputs.version }}"}}'

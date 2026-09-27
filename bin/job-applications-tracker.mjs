@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // Which job you applied to, with which CV, and what came back.
 //
-//   job-apply-agent add <url> --company talabat --role "Sr. Engineering Manager"
-//   job-apply-agent list [--open] [--json]
-//   job-apply-agent stage <id> <stage> [--note "..."]
-//   job-apply-agent followup [--after 7]
-//   job-apply-agent show <id>
-//   job-apply-agent rm <id>
+//   job-applications-tracker add <url> --company talabat --role "Sr. Engineering Manager"
+//   job-applications-tracker list [--open] [--json]
+//   job-applications-tracker stage <id> <stage> [--note "..."]
+//   job-applications-tracker followup [--after 7]
+//   job-applications-tracker show <id>
+//   job-applications-tracker rm <id>
 import { open, add, get, list, setStage, history, followup, remove, STAGES, TERMINAL, defaultDbPath }
   from '../src/store.mjs';
 
@@ -29,7 +29,7 @@ const positionals = () => {
 };
 
 if (!cmd || flag('-h') || flag('--help')) {
-  console.log(`job-apply-agent - which job you applied to, with which CV, and what came back
+  console.log(`job-applications-tracker - which job you applied to, with which CV, and what came back
 
   add <url>                 record an application
       --company  --role  --source  --cv  --answers a,b  --on YYYY-MM-DD  --note
@@ -48,7 +48,7 @@ This package has no telemetry. Nothing it knows leaves your machine.`);
 
 const db = open();
 const asJson = flag('--json');
-const die = (m) => { console.error(`job-apply-agent: ${m}`); process.exit(1); };
+const die = (m) => { console.error(`job-applications-tracker: ${m}`); process.exit(1); };
 
 /** Colour by how far along it is, so a list scans without being read. */
 const stageColour = (s) =>
