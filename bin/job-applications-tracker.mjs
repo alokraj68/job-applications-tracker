@@ -7,8 +7,11 @@
 //   job-applications-tracker followup [--after 7]
 //   job-applications-tracker show <id>
 //   job-applications-tracker rm <id>
+//   job-applications-tracker answers add <file> --tags agentic-ai,xp
+//   job-applications-tracker answers match <jd.txt> [--fits 1440]
 import { open, add, get, list, setStage, history, followup, remove, STAGES, TERMINAL, defaultDbPath }
   from '../src/store.mjs';
+import * as answers from '../src/answers.mjs';
 
 const args = process.argv.slice(2);
 const cmd = args[0];
@@ -38,6 +41,12 @@ if (!cmd || flag('-h') || flag('--help')) {
   stage <id> <stage>        move it along               [--note "..."]
   followup                  what has gone quiet         [--after 7] [--json]
   rm <id>                   delete it
+
+  answers add <file>        store a written answer      [--name x] [--tags a,b]
+  answers list              what you have               [--fits 1440]
+  answers show <name>       one answer in full
+  answers match <jd-file>   what a posting needs that you have, and what you do not
+  answers rm <name>         delete one
 
   stages: ${STAGES.join(', ')}
 
@@ -126,6 +135,72 @@ try {
       console.log(`${row(a)}  ${C.r}${a.quiet_days}d quiet${C.off}`);
     }
     console.log(`\n  ${due.length} waiting on a reply`);
+  }
+
+  else if (cmd === 'answers') {
+    const [sub, arg] = positionals();
+    const fits = valueOf('--fits') ? Number(valueOf('--fits')) : null;
+
+    if (sub === 'add') {
+      if (!arg) die('answers add needs a file');
+      const a = answers.addFile(db, arg, {
+        name: valueOf('--name'),
+        tags: valueOf('--tags')?.split(',').map((s) => s.trim()).filter(Boolean) ?? [],
+      });
+      console.log(`${C.g}stored${C.off} ${C.b}${a.name}${C.off}  ${a.words} words, ${a.chars} chars` +
+        (a.tags.length ? `  ${C.dim}[${a.tags.join(', ')}]${C.off}` : `\n  ${C.dim}no --tags given. Tagging is what makes 'answers match' useful.${C.off}`));
+    }
+
+    else if (sub === 'list') {
+      const all = answers.list(db, { fits });
+      if (asJson) { console.log(JSON.stringify(all, null, 2)); process.exit(0); }
+      if (!all.length) { console.log(`  ${C.dim}no answers stored yet${C.off}`); process.exit(0); }
+      for (const a of all) {
+        console.log(`  ${C.b}${col(a.name, 26)}${C.off} ${String(a.chars).padStart(5)} chars  ` +
+          `${String(a.words).padStart(4)} words  ${C.dim}${a.tags.join(', ')}${C.off}`);
+      }
+      if (fits) console.log(`\n  ${all.length} that fit ${fits} characters`);
+    }
+
+    else if (sub === 'show') {
+      const a = answers.get(db, arg ?? '');
+      if (!a) die(`no answer "${arg}"`);
+      console.log(`\n${C.b}${a.name}${C.off}  ${C.dim}${a.words} words, ${a.chars} chars` +
+        `${a.tags.length ? `  [${a.tags.join(', ')}]` : ''}${C.off}\n`);
+      console.log(a.body);
+    }
+
+    else if (sub === 'match') {
+      if (!arg) die('answers match needs a job-description file');
+      const { readFileSync } = await import('node:fs');
+      const r = answers.match(db, readFileSync(arg, 'utf8'), { fits });
+      if (asJson) { console.log(JSON.stringify(r, null, 2)); process.exit(0); }
+
+      if (!r.answers) {
+        console.log(`  ${C.dim}no answers stored, so everything is a gap. Add some with 'answers add'.${C.off}`);
+      }
+      console.log(`\n${C.g}covered${C.off} ${C.dim}- you have written this already${C.off}`);
+      if (!r.covered.length) console.log(`  ${C.dim}nothing${C.off}`);
+      for (const c of r.covered) {
+        const how = c.how === 'tag' ? `${C.g}tag${C.off} ` : `${C.y}text${C.off}`;
+        console.log(`  ${how} ${col(c.term, 24)} ${C.dim}${c.answers.join(', ')}${C.off}`);
+      }
+
+      console.log(`\n${C.r}no answer yet${C.off} ${C.dim}- this is the work${C.off}`);
+      if (!r.gaps.length) console.log(`  ${C.dim}nothing${C.off}`);
+      for (const g of r.gaps) {
+        console.log(`  ${col(g.term, 29)} ${C.dim}${g.mentions}x in the posting${g.named ? ', named' : ''}${C.off}`);
+      }
+      console.log(`\n  ${r.considered} requirement(s) read, ${r.covered.length} covered, ${r.gaps.length} open` +
+        (fits ? `  ${C.dim}(only answers under ${fits} chars counted)${C.off}` : ''));
+    }
+
+    else if (sub === 'rm') {
+      if (!answers.remove(db, arg ?? '')) die(`no answer "${arg}"`);
+      console.log(`deleted ${arg}`);
+    }
+
+    else die(`unknown answers subcommand "${sub ?? ''}". One of: add, list, show, match, rm`);
   }
 
   else if (cmd === 'rm') {

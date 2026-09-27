@@ -46,6 +46,16 @@ CREATE TABLE IF NOT EXISTS stage_history (
   at             TEXT    NOT NULL,
   note           TEXT
 );
+CREATE TABLE IF NOT EXISTS answers (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  name       TEXT    NOT NULL UNIQUE,
+  body       TEXT    NOT NULL,
+  tags       TEXT,
+  chars      INTEGER NOT NULL,
+  words      INTEGER NOT NULL,
+  source     TEXT,
+  created_at TEXT    NOT NULL
+);
 CREATE INDEX IF NOT EXISTS idx_history_app ON stage_history(application_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_app_url ON applications(url);
 `;

@@ -3,6 +3,7 @@
 // second half is the one that keeps a tool usable.
 import assert from 'node:assert/strict';
 import { open, add, get, list, setStage, history, followup, remove, STAGES, TERMINAL } from '../src/store.mjs';
+import { run as answerTests } from './answers.mjs';
 
 let pass = 0, fail = 0;
 const test = (name, fn) => {
@@ -162,6 +163,8 @@ test('newest application is listed first', () => {
   add(db, { url: 'https://example.com/new', applied_on: '2026-09-27' });
   assert.match(list(db)[0].url, /new/);
 });
+
+answerTests(test);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
