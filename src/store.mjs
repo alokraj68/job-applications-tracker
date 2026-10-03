@@ -115,8 +115,13 @@ export function add(db, app) {
   );
 
   const id = Number(info.lastInsertRowid);
+  // The opening stage happened on the day you applied, not on the day you got
+  // round to recording it. Stamping this `now()` meant three applications
+  // imported from eighteen days ago read as sent today, and `followup` - which
+  // measures from the last stage change - reported nothing overdue when all
+  // three were well past chasing. An --on date you cannot act on is decoration.
   db.prepare('INSERT INTO stage_history (application_id, stage, at, note) VALUES (?, ?, ?, ?)')
-    .run(id, stage, now(), app.notes ?? null);
+    .run(id, stage, `${at}T00:00:00.000Z`, app.notes ?? null);
   return get(db, id);
 }
 

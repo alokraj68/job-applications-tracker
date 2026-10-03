@@ -134,6 +134,17 @@ test('the clock runs from the last stage change, not from the application date',
   assert.equal(due.length, 1);
   assert.ok(due[0].quiet_days <= 30, `counted from the wrong date: ${due[0].quiet_days}`);
 });
+test('an application backdated with --on is chased from THAT date', () => {
+  // Importing three real applications from eighteen days earlier reported
+  // nothing overdue, because the opening stage_history row was stamped with
+  // the time of the import rather than the date applied.
+  const db = fresh();
+  const eighteenDaysAgo = new Date(Date.now() - 18 * 86_400_000).toISOString().slice(0, 10);
+  add(db, { url: 'https://example.com/old-application', applied_on: eighteenDaysAgo });
+  const due = followup(db);
+  assert.equal(due.length, 1, 'a backdated application was not chased at all');
+  assert.ok(due[0].quiet_days >= 17, `counted ${due[0].quiet_days} days, expected about 18`);
+});
 test('the quietest is listed first', () => {
   const db = fresh();
   add(db, { url: 'https://example.com/a', applied_on: '2026-01-01' });
