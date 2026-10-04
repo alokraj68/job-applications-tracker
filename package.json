@@ -49,7 +49,9 @@
   },
   "exports": {
     ".": "./src/store.mjs",
-    "./store": "./src/store.mjs"
+    "./store": "./src/store.mjs",
+    "./questions": "./src/questions.mjs",
+    "./files": "./src/files.mjs"
   },
   "files": [
     "bin",

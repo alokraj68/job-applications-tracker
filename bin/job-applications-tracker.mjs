@@ -9,9 +9,12 @@
 //   job-applications-tracker rm <id>
 //   job-applications-tracker answers add <file> --tags agentic-ai,xp
 //   job-applications-tracker answers match <jd.txt> [--fits 1440]
-import { open, add, get, list, setStage, history, followup, remove, STAGES, TERMINAL, defaultDbPath }
+import { join } from 'node:path';
+import { open, add, get, list, setStage, history, followup, remove, duplicateOf, STAGES, TERMINAL, defaultDbPath }
   from '../src/store.mjs';
+import * as files from '../src/files.mjs';
 import * as answers from '../src/answers.mjs';
+import * as questions from '../src/questions.mjs';
 import { proseCheck, cvCheck, INSTALL_HINT } from '../src/integrations.mjs';
 
 const args = process.argv.slice(2);
@@ -23,9 +26,13 @@ const C = process.stdout.isTTY
 
 const flag = (n) => args.includes(n);
 const valueOf = (n, d = null) => { const i = args.indexOf(n); return i === -1 ? d : args[i + 1]; };
+/** Flags that take no value. Anything else starting -- swallows the next argument. */
+const BOOLEAN = new Set(['--open', '--json', '--force', '--borrowed', '--help', '-h']);
 const positionals = () => {
   const out = [];
   for (let i = 1; i < args.length; i++) {
+    if (BOOLEAN.has(args[i])) continue;
+    // `add --force <url>` lost its url here: --force was taken for a flag with a value.
     if (args[i].startsWith('--')) { i++; continue; }   // skip the flag AND its value
     out.push(args[i]);
   }
@@ -41,13 +48,24 @@ if (!cmd || flag('-h') || flag('--help')) {
   show <id>                 one application and its history
   stage <id> <stage>        move it along               [--note "..."]
   followup                  what has gone quiet         [--after 7] [--json]
-  rm <id>                   delete it
+  rm <id>                   delete it (its files are archived, not deleted)
+      add refuses a second open application to the same company and role; --force overrides
+
+  attach <id>               keep the files for it          --jd --cv --cv-text --match --letter
+  prep <id>                 the JD, CV, gaps and what you told them, for the interview
+  prune                     delete archived files          [--older 90] (days)
 
   answers add <file>        store a written answer      [--name x] [--tags a,b]
   answers list              what you have               [--fits 1440]
   answers show <name>       one answer in full
   answers match <jd-file>   what a posting needs that you have, and what you do not
   answers rm <name>         delete one
+
+  settings                  every form question met, and its answer  [--open] [--borrowed] [--json]
+  settings set <id> "<a>"   answer or change one ("" clears it)
+      --region uae|ksa|qatar|oman|bahrain|kuwait|india   --role cto   only for those jobs
+  settings add "<q>" ["<a>"]  log a question by hand
+  settings rm <id>          delete one
 
   stages: ${STAGES.join(', ')}
 
@@ -80,6 +98,10 @@ try {
   if (cmd === 'add') {
     const [url] = positionals();
     if (!url) die('add needs a url');
+    const dup = duplicateOf(db, { company: valueOf('--company'), role: valueOf('--role') });
+    if (dup && !flag('--force')) {
+      die(`looks like #${dup.id} (${dup.company}, ${dup.role}), already open via ${dup.source ?? dup.url}. --force to record it anyway`);
+    }
     const a = add(db, {
       url,
       company: valueOf('--company'),
@@ -126,6 +148,56 @@ try {
     if (!id || !stage) die('stage needs an id and a stage');
     const a = setStage(db, Number(id), stage, valueOf('--note'));
     console.log(`#${a.id} ${C.b}${a.company ?? a.url}${C.off} -> ${stageColour(a.stage)}${a.stage}${C.off}`);
+    const archived = files.archiveIfClosed(a);
+    if (archived) console.log(`  ${C.dim}files archived to ${archived}${C.off}`);
+  }
+
+  else if (cmd === 'attach') {
+    const [id] = positionals();
+    const a = get(db, Number(id));
+    if (!a) die(`no application #${id}`);
+    const dir = files.attach(a, {
+      jd: valueOf('--jd'), cv: valueOf('--cv'), cvText: valueOf('--cv-text'),
+      match: valueOf('--match'), letter: valueOf('--letter'),
+    });
+    console.log(`#${a.id} files in ${dir}`);
+  }
+
+  else if (cmd === 'prep') {
+    // Everything for the night before the interview, in one place.
+    const [id] = positionals();
+    const a = get(db, Number(id));
+    if (!a) die(`no application #${id}`);
+    const f = files.read(a);
+    console.log(`\n${C.b}${a.company ?? '?'}${C.off} - ${a.role ?? '?'}  ${stageColour(a.stage)}${a.stage}${C.off}`);
+    console.log(`${C.dim}${a.url}${C.off}`);
+    if (!f) { console.log(`\n  ${C.dim}no files kept. attach ${a.id} --jd <file> --cv <file>${C.off}`); process.exit(0); }
+    console.log(`${C.dim}${f.dir}${f.archived ? '  (archived)' : ''}${C.off}`);
+    const match = f.files['match.json'] ? JSON.parse(f.files['match.json']) : null;
+    if (match) {
+      // ats-resume reports matchRate as a fraction: 0.6, not 60.
+      console.log(`\n  ${C.b}match${C.off} ${Math.round((match.matchRate ?? 0) * 100)}%  ${match.verdict ?? ''}`);
+      const terms = (xs) => (xs ?? []).map((g) => g.term ?? g).join(', ');
+      if (match.fatalGaps?.length) console.log(`  ${C.r}fatal gaps${C.off}: ${terms(match.fatalGaps)}`);
+      if (match.missing?.length) console.log(`  ${C.y}not on the CV, prepare an answer${C.off}: ${terms(match.missing)}`);
+    }
+    const sent = f.files['submitted.json'] ? JSON.parse(f.files['submitted.json']) : null;
+    if (sent?.answers?.length) {
+      console.log(`\n  ${C.b}what you told them${C.off}`);
+      for (const s of sent.answers) console.log(`    ${col(s.question, 44)} ${s.answer}`);
+    }
+    const cv = Object.keys(f.files).find((n) => /^cv\./.test(n));
+    console.log(`\n  ${C.b}cv sent${C.off}     ${cv ? join(f.dir, cv) : C.dim + 'not kept' + C.off}`);
+    const jd = f.files['jd.txt'];
+    if (jd) console.log(`\n  ${C.b}job description${C.off}\n\n${jd.trim().replace(/^/gm, '    ')}\n`);
+    else if (f.files['jd.html']) console.log(`  ${C.b}jd${C.off}          ${join(f.dir, 'jd.html')}`);
+  }
+
+  else if (cmd === 'prune') {
+    const days = Number(valueOf('--older', 90));
+    const gone = files.prune(days);
+    console.log(gone.length ? `deleted ${gone.length} archived folder(s) older than ${days} days:\n  ${gone.join('\n  ')}`
+      : `nothing archived for ${days}+ days`);
   }
 
   else if (cmd === 'followup') {
@@ -240,8 +312,58 @@ try {
     else die(`unknown answers subcommand "${sub ?? ''}". One of: add, list, show, match, rm`);
   }
 
+  else if (cmd === 'settings') {
+    const [sub, a1, a2] = positionals();
+
+    if (!sub || sub === 'list') {
+      const status = flag('--open') ? 'open' : flag('--borrowed') ? 'borrowed' : null;
+      const all = questions.list(db, { status });
+      if (asJson) { console.log(JSON.stringify(all, null, 2)); process.exit(0); }
+      const mark = { open: `${C.y}?${C.off}`, borrowed: `${C.c}~${C.off}`, answered: `${C.g}=${C.off}` };
+      for (const q of all) {
+        const waiting = q.scoped.length ? '(only for the scopes below)' : '(waiting for you)';
+        console.log(`  ${C.dim}#${col(q.id, 3)}${C.off} ${mark[q.status]} ${col(q.question, 48)} ` +
+          `${q.answer ?? C.dim + waiting + C.off}` +
+          (q.status === 'borrowed' ? `  ${C.dim}from #${q.borrowed_from}, check it${C.off}` : ''));
+        for (const s of q.scoped) {
+          const scope = [s.region, s.role].filter(Boolean).join(' + ');
+          console.log(`         ${C.c}${col(scope, 46)}${C.off} ${s.answer}`);
+        }
+      }
+      const open = all.filter((q) => q.status === 'open').length;
+      const borrowed = all.filter((q) => q.status === 'borrowed').length;
+      console.log(`\n  ${all.length} question(s), ${open} waiting for an answer, ${borrowed} borrowed to check` +
+        `\n  ${C.dim}settings set <id> "<answer>" to answer or change one${C.off}`);
+    }
+
+    else if (sub === 'set') {
+      if (!a1) die('settings set needs an id and an answer');
+      const scope = { region: valueOf('--region'), role: valueOf('--role') };
+      const q = questions.setScoped(db, Number(a1), scope, a2 ?? '');
+      const where = [scope.region, scope.role].filter(Boolean).join(' + ');
+      console.log(`#${q.id} ${q.question}${where ? ` [${where}]` : ''} = ${a2?.trim() || '(cleared)'}`);
+    }
+
+    else if (sub === 'add') {
+      if (!a1) die('settings add needs a question');
+      let q = questions.record(db, { question: a1, portal: 'manual' });
+      if (a2) q = questions.setAnswer(db, q.id, a2);
+      console.log(`#${q.id} ${q.question} = ${q.answer ?? '(waiting for you)'}`);
+    }
+
+    else if (sub === 'rm') {
+      if (!questions.remove(db, Number(a1))) die(`no question #${a1}`);
+      console.log(`deleted #${a1}`);
+    }
+
+    else die(`unknown settings subcommand "${sub}". One of: list, set, add, rm`);
+  }
+
   else if (cmd === 'rm') {
     const [id] = positionals();
+    const a = get(db, Number(id));
+    // The row goes; its files are archived, not orphaned and not deleted.
+    if (a) files.archiveIfClosed({ ...a, stage: 'withdrawn' });
     if (!remove(db, Number(id))) die(`no application #${id}`);
     console.log(`deleted #${id}`);
   }

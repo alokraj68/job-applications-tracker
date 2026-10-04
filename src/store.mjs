@@ -56,6 +56,29 @@ CREATE TABLE IF NOT EXISTS answers (
   source     TEXT,
   created_at TEXT    NOT NULL
 );
+CREATE TABLE IF NOT EXISTS questions (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  question      TEXT    NOT NULL,
+  key           TEXT    NOT NULL UNIQUE,
+  answer        TEXT,
+  status        TEXT    NOT NULL DEFAULT 'open',
+  borrowed_from INTEGER,
+  options       TEXT,
+  portals       TEXT,
+  seen          INTEGER NOT NULL DEFAULT 1,
+  first_seen    TEXT    NOT NULL,
+  last_seen     TEXT    NOT NULL,
+  updated_at    TEXT    NOT NULL
+);
+CREATE TABLE IF NOT EXISTS question_answers (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  question_id INTEGER NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+  region      TEXT    NOT NULL DEFAULT '',
+  role        TEXT    NOT NULL DEFAULT '',
+  answer      TEXT    NOT NULL,
+  updated_at  TEXT    NOT NULL,
+  UNIQUE (question_id, region, role)
+);
 CREATE INDEX IF NOT EXISTS idx_history_app ON stage_history(application_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_app_url ON applications(url);
 `;
@@ -124,6 +147,24 @@ export function add(db, app) {
     .run(id, stage, `${at}T00:00:00.000Z`, app.notes ?? null);
   return get(db, id);
 }
+
+/**
+ * The same job reached through a second board. URL uniqueness cannot see it:
+ * the talabat role on NaukriGulf and on LinkedIn are two URLs and one job.
+ * Matched on company and role with the noise taken out, and only among
+ * applications still open - a role you were rejected from last year and that
+ * is reposted now is a fresh chance, not a duplicate.
+ */
+export function duplicateOf(db, { company, role }) {
+  if (!company || !role) return null;
+  const c = normalise(company), r = normalise(role);
+  return list(db, { open: true }).find((a) => normalise(a.company) === c && normalise(a.role) === r) ?? null;
+}
+
+const normalise = (s) => String(s ?? '').toLowerCase()
+  .replace(/\b(sr)\b\.?/g, 'senior').replace(/\b(jr)\b\.?/g, 'junior')
+  .replace(/\b(llc|l\.l\.c|fz|fze|fzco|ltd|limited|pvt|private|company|co|inc|group)\b/g, '')
+  .replace(/[^a-z0-9]+/g, ' ').trim();
 
 export function get(db, id) {
   const row = db.prepare('SELECT * FROM applications WHERE id = ?').get(id);

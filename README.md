@@ -62,13 +62,38 @@ job-applications-tracker followup --after 7 # what has gone quiet
 
 Stages: `applied`, `screening`, `interview`, `offer`, `rejected`, `withdrawn`.
 
+### Form questions, answered once
+
+Every question an application form asks is logged with your answer. The next form that asks it, in any wording, gets the same answer.
+
+```bash
+job-applications-tracker settings                    # every question met, and its answer
+job-applications-tracker settings set 2 "negotiable"
+job-applications-tracker settings set 2 "45,000 AED" --region uae
+job-applications-tracker settings set 2 "65,000 AED" --region uae --role cto
+```
+
+Expected salary in Dubai is not expected salary in Riyadh, and a CTO seat is not a manager's. An answer can be scoped to a region (`uae`, `ksa`, `qatar`, `oman`, `bahrain`, `kuwait`, `india`), to a word in the job title, or both. The most specific fit wins, and the region is read from the posting's location.
+
+A reworded question borrows the nearest answer and is marked `~` until you confirm it. Two questions that differ on a word like current/expected or monthly/annual never share an answer.
+
+### The files behind each application
+
+```bash
+job-applications-tracker attach 1 --jd posting.txt --cv tailored.pdf --match match.json
+job-applications-tracker prep 1      # the JD, the CV sent, the gaps, and what you told them
+job-applications-tracker prune --older 90
+```
+
+Postings vanish when they close, often before the first interview. Each application keeps its own folder under `~/.job-applications-tracker/applications/`. A rejection moves it to `archive/` rather than deleting it, because recruiters come back. `prune` deletes archived folders past the age you give.
+
 ## 🧠 How it works
 
 One SQLite file, written by Node's own `node:sqlite`. That is the whole reason this package has no dependencies: the obvious alternative is a 1.5MB WebAssembly build of SQLite that exists to run in a browser, which this never does.
 
 Two decisions worth knowing:
 
-**A posting URL is unique.** Applying to the same job twice is a mistake worth catching, not a row worth having, and it happens: postings get reposted, or reach you again through a second board.
+**A posting URL is unique, and so is an open company-and-role pair.** Applying to the same job twice is a mistake worth catching, not a row worth having, and it happens: postings get reposted, or reach you again through a second board under a second URL. A role you were rejected from can be applied to again; `--force` overrides the rest.
 
 **`followup` counts from the last stage change, not from the application date.** Something that reached interview yesterday is not stale because you applied a month ago. Both halves are asserted in the tests.
 
@@ -80,7 +105,7 @@ That is a deliberate contrast with the alternatives, several of which ship your 
 
 ## 🗺️ Not built yet
 
-Tracking is what exists today. Discovery, an answer library that tells you which of your written answers covers a new posting's requirements, and submission adapters are planned in that order.
+Tracking, the answer library and the form-question bank exist today. Discovery and submission adapters for job portals are being built as a separate companion package, so this one stays free of browser automation and of dependencies.
 
 **On submission, plainly.** Automated applying breaches the terms of the platforms it would target. LinkedIn's User Agreement §8.2 prohibits "bots or other unauthorized automated methods to access the Services", and GulfTalent and Naukri carry equivalent clauses. Measured restriction rates for LinkedIn automation run around 23% within 90 days.
 

@@ -4,6 +4,8 @@
 import assert from 'node:assert/strict';
 import { open, add, get, list, setStage, history, followup, remove, STAGES, TERMINAL } from '../src/store.mjs';
 import { run as answerTests } from './answers.mjs';
+import { run as questionTests } from './questions.mjs';
+import { run as fileTests } from './files.mjs';
 
 let pass = 0, fail = 0;
 const test = (name, fn) => {
@@ -176,6 +178,8 @@ test('newest application is listed first', () => {
 });
 
 answerTests(test);
+questionTests(test);
+fileTests(test);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
